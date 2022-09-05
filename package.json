@@ -1,0 +1,19 @@
+{
+  "name": "sales-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {},
+  "author": "Predomain",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "ethers": "^5.7.0",
+    "file-type": "^18.0.0",
+    "filereader": "^0.10.3",
+    "graphql": "^16.6.0",
+    "graphql-request": "^5.0.0",
+    "svg-to-img": "^2.0.9",
+    "twitter-api-v2": "^1.12.5"
+  }
+}
