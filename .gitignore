@@ -1,2 +1,5 @@
+/avatars
 /node_modules
 package-lock.json
+twitter-conf.js 
+infra-conf.js 

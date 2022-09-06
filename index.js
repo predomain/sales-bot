@@ -24,6 +24,7 @@ const ENSTransferTopicIndicator =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const provider = new ethers.providers.InfuraProvider("homestead", infuraConf);
 
+const soldList = [];
 for (const c of contractsToTrack) {
   const filter = {
     address: [c.address],
@@ -34,6 +35,7 @@ for (const c of contractsToTrack) {
       e.data.indexOf(ENSRegistrarAddress.substring(2)) > -1 &&
       e.address.toLowerCase() === c.address.toLowerCase()
     ) {
+      let txData;
       provider
         .getTransactionReceipt(e.transactionHash)
         .then((r) => {
@@ -42,6 +44,7 @@ for (const c of contractsToTrack) {
           });
         })
         .then((r) => {
+          txData = r;
           const validLog = r.logs
             .filter(
               (d) =>
@@ -57,28 +60,46 @@ for (const c of contractsToTrack) {
               }
               return null;
             });
-          return [validLog[0], r];
+          return validLog;
         })
         .then((r) => {
-          return getDomain(r[0]).then((q) => {
-            return [q, r[1]];
-          });
+          if (r === null) {
+            throw "Domain ID resolution failed.";
+          }
+          return Promise.all(
+            r.map(async (d) => {
+              const domain = await getDomain(d).catch((e) => null);
+              return domain;
+            })
+          );
         })
         .then((r) => {
           try {
             const patternChecker = new RegExp(patternToTrack);
+            if (r[0] === null) {
+              throw "Domain metadata resolution failed.";
+            }
             const domainName = r[0].registrations[0].labelName;
             const domainHash = r[0].registrations[0].domain.labelhash;
+            const isBulkSale =
+              txData.logs.filter((l) => {
+                return (
+                  l.topics.includes(ENSTransferTopicIndicator.toLowerCase()) ===
+                  true
+                );
+              }).length > 1;
             const marketplaceData = validMarketplaces.filter((m) => {
               let foundMarketPlaceBeneficiary = false;
               for (const addr of m.address) {
                 if (
-                  r[1].tx.data.indexOf(addr.substring(2).toLowerCase()) > -1
+                  txData.tx.data.indexOf(addr.substring(2).toLowerCase()) > -1
                 ) {
                   foundMarketPlaceBeneficiary = true;
                 }
               }
               return (
+                (isBulkSale === false ||
+                  (isBulkSale === true && m.bulkSaleSupported === true)) &&
                 m.marketplaceAddress.toLowerCase() ===
                   c.address.toLowerCase() &&
                 foundMarketPlaceBeneficiary === true
@@ -87,16 +108,40 @@ for (const c of contractsToTrack) {
             if (marketplaceData.length <= 0) {
               throw "Marketplace not supported.";
             }
+            let price = txData.tx.value;
+            if (isBulkSale === true) {
+              switch (marketplaceData[0].name) {
+                case "opensea.io":
+                case "ens.vision":
+                  {
+                    price = marketplaceData[0].bulkPriceDiscovery(
+                      txData,
+                      domainHash,
+                      c.filterTopic
+                    );
+                    console.log(
+                      "Price log in bulk sale for",
+                      domainName,
+                      ":",
+                      ethers.utils.formatEther(price)
+                    );
+                  }
+                  break;
+              }
+            }
             const marketplaceName = marketplaceData[0].name;
             if (
+              domainName !== domainName.toLowerCase() ||
               domainName === undefined ||
               (patternToTrackSelection !== "ANY" &&
                 domainName !== undefined &&
-                patternChecker.test(domainName) === false)
+                patternChecker.test(domainName) === false) ||
+              soldList.includes(domainHash) === true
             ) {
-              throw "Domain is corrupt or invalid.";
+              throw "Domain is corrupt, invalid or duplicate.";
             }
-            const saleValue = ethers.utils.formatEther(r[1].tx.value);
+            soldList.push(domainHash);
+            const saleValue = ethers.utils.formatEther(price);
             const newSale = new Sale();
             newSale.marketplace = marketplaceName;
             newSale.price = saleValue;
