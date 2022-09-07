@@ -17,7 +17,11 @@ if (
     validPatterns
   );
 }
+if (process.argv.length < 4 || isNaN(process.argv[3]) === true) {
+  console.log("Min price not valid.");
+}
 const patternToTrackSelection = process.argv[2];
+const minPriceToTweet = process.argv[3];
 const patternToTrack = patternChecks[patternToTrackSelection];
 const ENSRegistrarAddress = "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85";
 const ENSTransferTopicIndicator =
@@ -140,8 +144,12 @@ for (const c of contractsToTrack) {
             ) {
               throw "Domain is corrupt, invalid or duplicate.";
             }
+            const finalPrice = ethers.utils.formatEther(price);
+            if (parseFloat(finalPrice) < parseFloat(minPriceToTweet)) {
+              throw "Domain price not enough: " + finalPrice;
+            }
             soldList.push(domainHash);
-            const saleValue = ethers.utils.formatEther(price);
+            const saleValue = finalPrice;
             const newSale = new Sale();
             newSale.marketplace = marketplaceName;
             newSale.price = saleValue;

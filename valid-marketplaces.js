@@ -1,4 +1,5 @@
 import * as ethers from "ethers";
+import seaportABI from "./seaport-abi.js";
 export default [
   {
     name: "ens.vision",
@@ -13,13 +14,19 @@ export default [
         const validSaleLog = saleLog.filter(
           (l) => l.data.indexOf(domainHash.substring(2).toLowerCase()) > -1
         );
-        const saleLogDataParsed = validSaleLog[0].data
-          .substring(2)
-          .match(/.{1,64}/g);
-        if (ethers.BigNumber.from(saleLogDataParsed[8]).eq(1) === true) {
-          return ethers.BigNumber.from("0x" + saleLogDataParsed[13]);
+        const dataDecoded = ethers.utils.defaultAbiCoder.decode(
+          seaportABI,
+          validSaleLog[0].data
+        );
+        const consideration = dataDecoded.consideration.map((c) =>
+          c.amount.toString()
+        );
+        const offers = dataDecoded.offer.map((c) => c.amount.toString());
+        console.log("VISION", consideration, offers);
+        if (consideration[0] === "1") {
+          return ethers.BigNumber.from(offers[0]);
         }
-        return ethers.BigNumber.from("0x" + saleLogDataParsed[14]);
+        return ethers.BigNumber.from(consideration[0]);
       } catch (e) {
         console.log(e);
       }
@@ -42,13 +49,19 @@ export default [
         const validSaleLog = saleLog.filter(
           (l) => l.data.indexOf(domainHash.substring(2).toLowerCase()) > -1
         );
-        const saleLogDataParsed = validSaleLog[0].data
-          .substring(2)
-          .match(/.{1,64}/g);
-        if (ethers.BigNumber.from(saleLogDataParsed[8]).eq(1) === true) {
-          return ethers.BigNumber.from("0x" + saleLogDataParsed[13]);
+        const dataDecoded = ethers.utils.defaultAbiCoder.decode(
+          seaportABI,
+          validSaleLog[0].data
+        );
+        const consideration = dataDecoded.consideration.map((c) =>
+          c.amount.toString()
+        );
+        const offers = dataDecoded.offer.map((c) => c.amount.toString());
+        console.log("OS", consideration, offers);
+        if (consideration[0] === "1") {
+          return ethers.BigNumber.from(offers[0]);
         }
-        return ethers.BigNumber.from("0x" + saleLogDataParsed[14]);
+        return ethers.BigNumber.from(consideration[0]);
       } catch (e) {
         console.log(e);
       }
